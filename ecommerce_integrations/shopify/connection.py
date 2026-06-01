@@ -74,6 +74,14 @@ def _get_access_token(setting):
 				_("Failed to authenticate with Shopify using OAuth 2.0: {0}").format(str(e)),
 				title=_("Authentication Error"),
 			)
+	elif setting.authentication_method == "Authorization Code Grant":
+		token = setting.get_password("authorization_code_token", raise_exception=False)
+		if not token:
+			frappe.throw(
+				_("No access token found. Please click 'Authorize App' to complete the OAuth flow."),
+				title=_("Authentication Error"),
+			)
+		return token
 	else:
 		# Static Token authentication
 		return setting.get_password("password")

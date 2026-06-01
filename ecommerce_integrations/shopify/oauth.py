@@ -6,7 +6,9 @@ OAuth 2.0 Client Credentials Flow for Shopify Apps
 Implements token generation and refresh for apps created via Shopify Dev Dashboard
 """
 
+import hashlib
 import json
+import secrets
 import time
 from datetime import datetime, timedelta
 
@@ -257,3 +259,185 @@ def validate_oauth_credentials(shopify_url: str, client_id: str, client_secret: 
 	except Exception:
 		# Error is already logged and thrown by generate_oauth_token
 		raise
+
+
+# ============================================================================
+# Authorization Code Grant Flow
+# ============================================================================
+
+
+def get_authorization_url(shopify_url: str, client_id: str, redirect_uri: str, scopes: str) -> str:
+	"""
+	Build the Shopify authorization URL for the Authorization Code Grant flow.
+
+	Args:
+	        shopify_url: The shop URL (e.g., 'example.myshopify.com')
+	        client_id: OAuth client ID from Shopify Partner Dashboard
+	        redirect_uri: Callback URL to receive the authorization code
+	        scopes: Comma-separated list of scopes
+
+	Returns:
+	        Full authorization URL to redirect the user to
+	"""
+	shop_url = shopify_url.replace("https://", "").replace("http://", "")
+	state = secrets.token_hex(16)
+
+	# Store state in cache for validation
+	frappe.cache().set_value(f"shopify_oauth_state_{state}", state, expires_in_sec=600)
+
+	auth_url = (
+		f"https://{shop_url}/admin/oauth/authorize"
+		f"?client_id={client_id}"
+		f"&scope={scopes}"
+		f"&redirect_uri={redirect_uri}"
+		f"&state={state}"
+	)
+
+	return auth_url
+
+
+def exchange_code_for_token(shopify_url: str, client_id: str, client_secret: str, code: str) -> dict:
+	"""
+	Exchange an authorization code for a permanent access token.
+
+	Args:
+	        shopify_url: The shop URL
+	        client_id: OAuth client ID
+	        client_secret: OAuth client secret
+	        code: Authorization code received from Shopify callback
+
+	Returns:
+	        Dictionary containing access_token and scope
+
+	Raises:
+	        frappe.ValidationError: If token exchange fails
+	"""
+	token_endpoint = get_oauth_token_endpoint(shopify_url)
+
+	payload = {
+		"client_id": client_id,
+		"client_secret": client_secret,
+		"code": code,
+	}
+
+	headers = {
+		"Content-Type": "application/x-www-form-urlencoded",
+	}
+
+	try:
+		response = requests.post(token_endpoint, data=payload, headers=headers, timeout=30)
+		response.raise_for_status()
+
+		token_data = response.json()
+
+		create_shopify_log(
+			status="Success",
+			method="ecommerce_integrations.shopify.oauth.exchange_code_for_token",
+			message=_("Authorization Code token exchange successful"),
+		)
+
+		return token_data
+
+	except requests.exceptions.RequestException as e:
+		error_message = str(e)
+
+		if hasattr(e, "response") and e.response is not None:
+			try:
+				error_response = e.response.json()
+				error_message = error_response.get("error_description", error_response.get("error", str(e)))
+			except json.JSONDecodeError:
+				error_message = e.response.text or str(e)
+
+		create_shopify_log(
+			status="Error",
+			method="ecommerce_integrations.shopify.oauth.exchange_code_for_token",
+			message=_("Failed to exchange authorization code for token"),
+			exception=error_message,
+		)
+
+		frappe.throw(
+			_("Failed to exchange authorization code: {0}").format(error_message),
+			title=_("OAuth Token Exchange Error"),
+		)
+
+
+@frappe.whitelist(allow_guest=True)
+def shopify_oauth_callback():
+	"""
+	Callback endpoint for Shopify OAuth Authorization Code flow.
+	Shopify redirects here after user authorizes the app.
+	"""
+	code = frappe.form_dict.get("code")
+	state = frappe.form_dict.get("state")
+	shop = frappe.form_dict.get("shop")
+
+	if not code or not state or not shop:
+		frappe.throw(_("Invalid OAuth callback: missing parameters"))
+
+	# Validate state
+	stored_state = frappe.cache().get_value(f"shopify_oauth_state_{state}")
+	if not stored_state:
+		frappe.throw(_("Invalid OAuth callback: state mismatch or expired"))
+
+	# Clear used state
+	frappe.cache().delete_value(f"shopify_oauth_state_{state}")
+
+	# Get settings
+	setting = frappe.get_doc("Shopify Setting")
+
+	# Exchange code for token
+	token_data = exchange_code_for_token(
+		setting.shopify_url,
+		setting.client_id,
+		setting.get_password("client_secret"),
+		code,
+	)
+
+	access_token = token_data.get("access_token")
+	if not access_token:
+		frappe.throw(_("No access token received from Shopify"))
+
+	# Store the token
+	set_encrypted_password(
+		"Shopify Setting",
+		setting.name,
+		access_token,
+		fieldname="authorization_code_token",
+	)
+
+	frappe.db.commit()
+
+	# Redirect back to Shopify Settings
+	frappe.local.response["type"] = "redirect"
+	frappe.local.response["location"] = "/app/shopify-setting"
+
+
+@frappe.whitelist()
+def get_auth_code_url():
+	"""
+	Generate the authorization URL for the Authorization Code flow.
+	Called from the 'Authorize App' button in Shopify Settings.
+	"""
+	setting = frappe.get_doc("Shopify Setting")
+
+	if not setting.client_id:
+		frappe.throw(_("Client ID is required for Authorization Code Grant"))
+
+	if not setting.shopify_url:
+		frappe.throw(_("Shop URL is required"))
+
+	# Build redirect URI
+	site_url = frappe.utils.get_url()
+	redirect_uri = f"{site_url}/api/method/ecommerce_integrations.shopify.oauth.shopify_oauth_callback"
+
+	# Scopes - match what the app has configured
+	scopes = "read_customers,write_customers,read_orders,write_orders,read_products,write_products,read_inventory,write_inventory"
+
+	auth_url = get_authorization_url(
+		setting.shopify_url,
+		setting.client_id,
+		redirect_uri,
+		scopes,
+	)
+
+	return auth_url

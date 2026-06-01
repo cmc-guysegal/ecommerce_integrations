@@ -100,6 +100,14 @@ class ShopifySetting(SettingController):
 			if not client_secret:
 				frappe.throw(_("Client Secret is required for OAuth 2.0 authentication"))
 
+		elif self.authentication_method == "Authorization Code Grant":
+			if not self.client_id:
+				frappe.throw(_("Client ID is required for Authorization Code Grant"))
+
+			client_secret = self._get_password_safe("client_secret")
+			if not client_secret:
+				frappe.throw(_("Client Secret is required for Authorization Code Grant"))
+
 	def _validate_oauth_credentials_if_needed(self):
 		"""Validate OAuth credentials by generating a test token if credentials changed."""
 		if not self.is_enabled():
@@ -158,6 +166,10 @@ class ShopifySetting(SettingController):
 			if self.authentication_method == "OAuth 2.0 Client Credentials":
 				# For OAuth, get or generate a valid token
 				password = self._get_or_generate_oauth_token()
+			elif self.authentication_method == "Authorization Code Grant":
+				password = self._get_password_safe("authorization_code_token")
+				if not password:
+					return  # Token not yet obtained, skip webhook registration
 			else:
 				# For Static Token, use the password field
 				password = self.get_password("password")
@@ -177,6 +189,8 @@ class ShopifySetting(SettingController):
 			# Get the appropriate password/token for webhook unregistration
 			if self.authentication_method == "OAuth 2.0 Client Credentials":
 				password = self._get_password_safe("oauth_access_token")
+			elif self.authentication_method == "Authorization Code Grant":
+				password = self._get_password_safe("authorization_code_token")
 			else:
 				password = self._get_password_safe("password")
 

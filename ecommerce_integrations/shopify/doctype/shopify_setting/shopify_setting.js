@@ -25,6 +25,17 @@ frappe.ui.form.on("Shopify Setting", {
 		});
 	},
 
+	initiate_auth_code_flow: function (frm) {
+		frappe.call({
+			method: "ecommerce_integrations.shopify.oauth.get_auth_code_url",
+			callback: function (r) {
+				if (r.message) {
+					window.open(r.message, "_blank");
+				}
+			},
+		});
+	},
+
 	refresh: function (frm) {
 		frm.add_custom_button(__("Import Products"), function () {
 			frappe.set_route("shopify-import-products");
@@ -51,7 +62,7 @@ frappe.ui.form.on("Shopify Setting", {
 		frm.set_query(
 			"erpnext_warehouse",
 			"shopify_warehouse_mapping",
-			warehouse_query
+			warehouse_query,
 		);
 
 		frm.set_query("price_list", () => {
