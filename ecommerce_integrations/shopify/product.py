@@ -54,10 +54,26 @@ class ShopifyProduct:
 
 	@temp_shopify_session
 	def sync_product(self):
+		create_shopify_log(
+			status="Info",
+			method="ecommerce_integrations.shopify.product.ShopifyProduct.sync_product",
+			message=_("Starting product sync for product_id: {0}").format(self.product_id),
+		)
 		if not self.is_synced():
 			shopify_product = Product.find(self.product_id)
 			product_dict = shopify_product.to_dict()
 			self._make_item(product_dict)
+			create_shopify_log(
+				status="Success",
+				method="ecommerce_integrations.shopify.product.ShopifyProduct.sync_product",
+				message=_("Product sync completed for product_id: {0}").format(self.product_id),
+			)
+		else:
+			create_shopify_log(
+				status="Info",
+				method="ecommerce_integrations.shopify.product.ShopifyProduct.sync_product",
+				message=_("Product already synced for product_id: {0}").format(self.product_id),
+			)
 
 	def _make_item(self, product_dict):
 		_add_weight_details(product_dict)

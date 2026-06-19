@@ -397,15 +397,35 @@ def shopify_oauth_callback():
 	if not access_token:
 		frappe.throw(_("No access token received from Shopify"))
 
-	# Store the token
-	set_encrypted_password(
-		"Shopify Setting",
-		setting.name,
-		access_token,
-		fieldname="authorization_code_token",
+	create_shopify_log(
+		status="Info",
+		method="ecommerce_integrations.shopify.oauth.shopify_oauth_callback",
+		message=_("About to save token to database"),
 	)
 
-	frappe.db.commit()
+	# Store the token
+	try:
+		set_encrypted_password(
+			"Shopify Setting",
+			setting.name,
+			access_token,
+			fieldname="authorization_code_token",
+		)
+		frappe.db.commit()
+
+		create_shopify_log(
+			status="Success",
+			method="ecommerce_integrations.shopify.oauth.shopify_oauth_callback",
+			message=_("Token saved successfully to database"),
+		)
+	except Exception as e:
+		create_shopify_log(
+			status="Error",
+			method="ecommerce_integrations.shopify.oauth.shopify_oauth_callback",
+			message=_("Failed to save token to database"),
+			exception=str(e),
+		)
+		frappe.throw(_("Failed to save token: {0}").format(str(e)))
 
 	# Redirect back to Shopify Settings
 	frappe.local.response["type"] = "redirect"

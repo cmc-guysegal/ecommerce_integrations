@@ -151,12 +151,24 @@ def store_request_data() -> None:
 		data = json.loads(frappe.request.data)
 		event = frappe.request.headers.get("X-Shopify-Topic")
 
+		create_shopify_log(
+			status="Info",
+			method="ecommerce_integrations.shopify.connection.store_request_data",
+			message=_("Webhook received: {0} for order_id: {1}").format(event, data.get("id", "unknown")),
+		)
+
 		process_request(data, event)
 
 
 def process_request(data, event):
 	# create log
 	log = create_shopify_log(method=EVENT_MAPPER[event], request_data=data)
+
+	create_shopify_log(
+		status="Info",
+		method="ecommerce_integrations.shopify.connection.process_request",
+		message=_("Enqueueing background job for event: {0} with request_id: {1}").format(event, log.name),
+	)
 
 	# enqueue backround job
 	frappe.enqueue(

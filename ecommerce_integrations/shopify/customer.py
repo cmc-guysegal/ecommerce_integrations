@@ -20,6 +20,13 @@ class ShopifyCustomer(EcommerceCustomer):
 
 	def sync_customer(self, customer: dict[str, Any]) -> None:
 		"""Create Customer in ERPNext using shopify's Customer dict."""
+		from ecommerce_integrations.shopify.utils import create_shopify_log
+
+		create_shopify_log(
+			status="Info",
+			method="ecommerce_integrations.shopify.customer.ShopifyCustomer.sync_customer",
+			message=_("Starting customer sync for customer_id: {0}").format(self.customer_id),
+		)
 
 		customer_name = cstr(customer.get("first_name")) + " " + cstr(customer.get("last_name"))
 		if len(customer_name.strip()) == 0:
@@ -43,6 +50,12 @@ class ShopifyCustomer(EcommerceCustomer):
 			)
 
 		self.create_customer_contact(customer)
+
+		create_shopify_log(
+			status="Success",
+			method="ecommerce_integrations.shopify.customer.ShopifyCustomer.sync_customer",
+			message=_("Customer sync completed for customer_id: {0}").format(self.customer_id),
+		)
 
 	def create_customer_address(
 		self,

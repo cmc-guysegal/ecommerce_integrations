@@ -35,8 +35,18 @@ def sync_sales_order(payload, request_id=None):
 	frappe.set_user("Administrator")
 	frappe.flags.request_id = request_id
 
+	create_shopify_log(
+		status="Info",
+		method="ecommerce_integrations.shopify.order.sync_sales_order",
+		message=_("Starting order sync for order_id: {0}").format(order.get("id")),
+	)
+
 	if frappe.db.get_value("Sales Order", filters={ORDER_ID_FIELD: cstr(order["id"])}):
-		create_shopify_log(status="Invalid", message="Sales order already exists, not synced")
+		create_shopify_log(
+			status="Invalid",
+			method="ecommerce_integrations.shopify.order.sync_sales_order",
+			message=_("Sales order already exists, not synced for order_id: {0}").format(order.get("id")),
+		)
 		return
 	try:
 		shopify_customer = order.get("customer") if order.get("customer") is not None else {}
@@ -55,9 +65,19 @@ def sync_sales_order(payload, request_id=None):
 		setting = frappe.get_doc(SETTING_DOCTYPE)
 		create_order(order, setting)
 	except Exception as e:
-		create_shopify_log(status="Error", exception=e, rollback=True)
+		create_shopify_log(
+			status="Error",
+			method="ecommerce_integrations.shopify.order.sync_sales_order",
+			message=_("Order sync failed for order_id: {0}").format(order.get("id")),
+			exception=e,
+			rollback=True,
+		)
 	else:
-		create_shopify_log(status="Success")
+		create_shopify_log(
+			status="Success",
+			method="ecommerce_integrations.shopify.order.sync_sales_order",
+			message=_("Order sync completed for order_id: {0}").format(order.get("id")),
+		)
 
 
 def create_order(order, setting, company=None):
