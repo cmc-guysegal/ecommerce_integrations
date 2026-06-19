@@ -91,21 +91,59 @@ def register_webhooks(shopify_url: str, password: str) -> list[Webhook]:
 	"""Register required webhooks with shopify and return registered webhooks."""
 	new_webhooks = []
 
+	create_shopify_log(
+		status="Info",
+		method="ecommerce_integrations.shopify.connection.register_webhooks",
+		message=_("Starting webhook registration for {0} events").format(len(WEBHOOK_EVENTS)),
+	)
+
 	# clear all stale webhooks matching current site url before registering new ones
 	unregister_webhooks(shopify_url, password)
 
+	callback_url = get_callback_url()
+	create_shopify_log(
+		status="Info",
+		method="ecommerce_integrations.shopify.connection.register_webhooks",
+		message=_("Callback URL: {0}").format(callback_url),
+	)
+
 	with Session.temp(shopify_url, API_VERSION, password):
 		for topic in WEBHOOK_EVENTS:
-			webhook = Webhook.create({"topic": topic, "address": get_callback_url(), "format": "json"})
+			create_shopify_log(
+				status="Info",
+				method="ecommerce_integrations.shopify.connection.register_webhooks",
+				message=_("Creating webhook for topic: {0} at {1}").format(topic, callback_url),
+			)
+
+			webhook = Webhook.create({"topic": topic, "address": callback_url, "format": "json"})
+
+			create_shopify_log(
+				status="Info",
+				method="ecommerce_integrations.shopify.connection.register_webhooks",
+				message=_("Webhook create response: {0}, is_valid: {1}").format(webhook.to_dict(), webhook.is_valid()),
+			)
 
 			if webhook.is_valid():
 				new_webhooks.append(webhook)
+				create_shopify_log(
+					status="Success",
+					method="ecommerce_integrations.shopify.connection.register_webhooks",
+					message=_("Webhook registered successfully for topic: {0}, ID: {1}").format(topic, webhook.id),
+				)
 			else:
 				create_shopify_log(
 					status="Error",
+					method="ecommerce_integrations.shopify.connection.register_webhooks",
+					message=_("Webhook creation failed for topic: {0}").format(topic),
 					response_data=webhook.to_dict(),
 					exception=webhook.errors.full_messages(),
 				)
+
+	create_shopify_log(
+		status="Info",
+		method="ecommerce_integrations.shopify.connection.register_webhooks",
+		message=_("Webhook registration completed. Total registered: {0}").format(len(new_webhooks)),
+	)
 
 	return new_webhooks
 

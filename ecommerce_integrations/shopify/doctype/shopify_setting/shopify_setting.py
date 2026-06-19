@@ -161,6 +161,14 @@ class ShopifySetting(SettingController):
 
 	def _handle_webhooks(self):
 		"""Handle webhook registration/unregistration. Uses appropriate token based on auth method."""
+		from ecommerce_integrations.shopify.utils import create_shopify_log
+
+		create_shopify_log(
+			status="Info",
+			method="ecommerce_integrations.shopify.doctype.shopify_setting.shopify_setting._handle_webhooks",
+			message=_( "_handle_webhooks called: is_enabled={0}, webhooks_count={1}").format(self.is_enabled(), len(self.webhooks) if self.webhooks else 0),
+		)
+
 		if self.is_enabled() and not self.webhooks:
 			# Get the appropriate password/token for webhook registration
 			if self.authentication_method == "OAuth 2.0 Client Credentials":
@@ -169,6 +177,11 @@ class ShopifySetting(SettingController):
 			elif self.authentication_method == "Authorization Code Grant":
 				password = self._get_password_safe("authorization_code_token")
 				if not password:
+					create_shopify_log(
+						status="Warning",
+						method="ecommerce_integrations.shopify.doctype.shopify_setting.shopify_setting._handle_webhooks",
+						message=_("Authorization Code token not found, skipping webhook registration"),
+					)
 					return  # Token not yet obtained, skip webhook registration
 			else:
 				# For Static Token, use the password field

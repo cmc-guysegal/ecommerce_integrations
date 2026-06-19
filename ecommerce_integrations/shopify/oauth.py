@@ -400,10 +400,17 @@ def shopify_oauth_callback():
 	create_shopify_log(
 		status="Info",
 		method="ecommerce_integrations.shopify.oauth.shopify_oauth_callback",
+		message=_("Token received from Shopify: {0}").format(access_token[:20] + "..." if len(access_token) > 20 else access_token),
+	)
+
+	create_shopify_log(
+		status="Info",
+		method="ecommerce_integrations.shopify.oauth.shopify_oauth_callback",
 		message=_("About to save token to database"),
 	)
 
-	# Store the token
+	# Store the token - authenticate as Administrator for password save
+	frappe.set_user("Administrator")
 	try:
 		set_encrypted_password(
 			"Shopify Setting",
@@ -413,16 +420,18 @@ def shopify_oauth_callback():
 		)
 		frappe.db.commit()
 
+		# Verify the save
+		saved_token = setting.get_password("authorization_code_token", raise_exception=False)
 		create_shopify_log(
-			status="Success",
+			status="Info",
 			method="ecommerce_integrations.shopify.oauth.shopify_oauth_callback",
-			message=_("Token saved successfully to database"),
+			message=_("Token saved to database. Verification: {0}").format(saved_token[:20] + "..." if saved_token and len(saved_token) > 20 else saved_token),
 		)
 	except Exception as e:
 		create_shopify_log(
 			status="Error",
 			method="ecommerce_integrations.shopify.oauth.shopify_oauth_callback",
-			message=_("Failed to save token to database"),
+			message=_("Failed to save token to database: {0}").format(str(e)),
 			exception=str(e),
 		)
 		frappe.throw(_("Failed to save token: {0}").format(str(e)))
