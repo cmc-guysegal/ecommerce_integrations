@@ -94,6 +94,15 @@ class ShopifySetting(SettingController):
 			setup_custom_fields()
 
 	def on_update(self):
+		# Re-set authorization_code_token after save (Frappe clears __Auth for Single doctypes)
+		if getattr(self, '_preserved_auth_code_token', None):
+			from frappe.utils.password import set_encrypted_password
+			set_encrypted_password(
+				"Shopify Setting", self.name, self._preserved_auth_code_token,
+				fieldname="authorization_code_token"
+			)
+			frappe.db.commit()
+
 		if self.is_enabled() and not self.is_old_data_migrated:
 			migrate_from_old_connector()
 
@@ -164,7 +173,14 @@ class ShopifySetting(SettingController):
 				raise
 
 	def before_save(self):
-		"""Optional: Pre-generate OAuth token for better UX."""
+		"""Pre-generate OAuth token or preserve Authorization Code token."""
+		# Stash token before save - Frappe clears __Auth for Single doctypes during db_update
+		if self.authentication_method == "Authorization Code Grant":
+			from frappe.utils.password import get_decrypted_password
+			self._preserved_auth_code_token = get_decrypted_password(
+				"Shopify Setting", "Shopify Setting", "authorization_code_token", raise_exception=False
+			)
+
 		if not self.is_enabled():
 			return
 
