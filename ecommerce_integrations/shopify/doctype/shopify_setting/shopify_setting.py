@@ -42,14 +42,39 @@ class ShopifySetting(SettingController):
 		Safely get password field value without raising exceptions.
 		Returns empty string if password doesn't exist or document is new.
 		"""
+		from ecommerce_integrations.shopify.utils import create_shopify_log
+
 		try:
 			# Check if document is saved
 			if not self.name or self.is_new():
+				create_shopify_log(
+					status="Info",
+					method="ecommerce_integrations.shopify.doctype.shopify_setting.shopify_setting._get_password_safe",
+					message=_("Document is new or has no name, returning empty for field: {0}").format(fieldname),
+				)
 				return ""
 
 			password = self.get_password(fieldname, raise_exception=False)
+			if password:
+				create_shopify_log(
+					status="Info",
+					method="ecommerce_integrations.shopify.doctype.shopify_setting.shopify_setting._get_password_safe",
+					message=_("Password found for field: {0}, length: {1}").format(fieldname, len(password)),
+				)
+			else:
+				create_shopify_log(
+					status="Warning",
+					method="ecommerce_integrations.shopify.doctype.shopify_setting.shopify_setting._get_password_safe",
+					message=_("Password not found for field: {0}").format(fieldname),
+				)
 			return password if password else ""
-		except Exception:
+		except Exception as e:
+			create_shopify_log(
+				status="Error",
+				method="ecommerce_integrations.shopify.doctype.shopify_setting.shopify_setting._get_password_safe",
+				message=_("Exception getting password for field: {0}").format(fieldname),
+				exception=str(e),
+			)
 			return ""
 
 	def validate(self):
