@@ -460,7 +460,7 @@ def get_auth_code_url():
 	redirect_uri = f"{site_url}/api/method/ecommerce_integrations.shopify.oauth.shopify_oauth_callback"
 
 	# Scopes - match what the app has configured
-	scopes = "read_customers,write_customers,read_orders,write_orders,read_products,write_products,read_inventory,write_inventory"
+	scopes = "read_customers,write_customers,read_orders,write_orders,read_products,write_products,read_inventory,write_inventory,read_locations"
 
 	auth_url = get_authorization_url(
 		setting.shopify_url,
