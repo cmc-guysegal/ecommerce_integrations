@@ -457,25 +457,50 @@ def upload_erpnext_item(doc, method=None):
 				)
 			else:
 				variant_attributes = {"sku": item.item_code, "price": item.get(ITEM_SELLING_RATE_FIELD)}
-				product.options = []
 				max_index_range = min(3, len(template_item.attributes))
 				for i in range(0, max_index_range):
-					attr = template_item.attributes[i]
-					product.options.append(
-						{
-							"name": attr.attribute,
-							"values": frappe.db.get_all(
-								"Item Attribute Value", {"parent": attr.attribute}, pluck="attribute_value"
-							),
-						}
-					)
 					try:
 						variant_attributes[f"option{i+1}"] = item.attributes[i].attribute_value
 					except IndexError:
 						frappe.throw(
-							_("Shopify Error: Missing value for attribute {}").format(attr.attribute)
+							_("Shopify Error: Missing value for attribute {}").format(
+								template_item.attributes[i].attribute
+							)
 						)
-				product.variants.append(Variant(variant_attributes))
+
+				# Find and update existing variant instead of appending a duplicate
+				existing_variant_id = frappe.db.get_value(
+					"Ecommerce Item",
+					{"erpnext_item_code": item.name, "integration": MODULE_NAME},
+					"variant_id",
+				)
+				variant_updated = False
+				if existing_variant_id:
+					for variant in product.variants:
+						if str(variant.id) == str(existing_variant_id):
+							variant.sku = variant_attributes.get("sku")
+							variant.price = variant_attributes.get("price")
+							for key in ("option1", "option2", "option3"):
+								if key in variant_attributes:
+									setattr(variant, key, variant_attributes[key])
+							variant_updated = True
+							break
+
+				if not variant_updated:
+					# Fallback: match by option values
+					for variant in product.variants:
+						if (
+							variant.option1 == variant_attributes.get("option1")
+							and variant.option2 == variant_attributes.get("option2")
+							and variant.option3 == variant_attributes.get("option3")
+						):
+							variant.sku = variant_attributes.get("sku")
+							variant.price = variant_attributes.get("price")
+							variant_updated = True
+							break
+
+				if not variant_updated:
+					product.variants.append(Variant(variant_attributes))
 
 			is_successful = product.save()
 			if is_successful and item.variant_of:
