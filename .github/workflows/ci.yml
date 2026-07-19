@@ -1,6 +1,7 @@
 name: CI
 
 on:
+  workflow_dispatch:
   push:
     branches:
       - main
@@ -42,7 +43,7 @@ jobs:
       mysql:
         image: mariadb:10.6
         env:
-          MARIADB_ROOT_PASSWORD: 'root'
+          MARIADB_ROOT_PASSWORD: "root"
         ports:
           - 3306:3306
         options: --health-cmd="mariadb-admin ping" --health-interval=5s --health-timeout=2s --health-retries=3
@@ -54,7 +55,7 @@ jobs:
       - name: Setup Python
         uses: actions/setup-python@v5
         with:
-          python-version: '3.10'
+          python-version: "3.10"
 
       - name: Setup Node
         uses: actions/setup-node@v2
@@ -103,7 +104,6 @@ jobs:
           bash ${GITHUB_WORKSPACE}/.github/helper/install.sh
         env:
           BRANCH_TO_CLONE: ${{ env.ECOMMERCE_BRANCH }}
-
 
       - name: Run Tests
         run: cd ~/frappe-bench/ && bench --site test_site run-tests --app ecommerce_integrations ${{ env.WITH_COVERAGE == 'true' && '--coverage' || '' }}
