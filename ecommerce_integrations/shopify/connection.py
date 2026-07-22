@@ -182,6 +182,12 @@ def get_callback_url() -> str:
 @frappe.whitelist(allow_guest=True)
 def store_request_data() -> None:
 	if frappe.request:
+		create_shopify_log(
+			status="Info",
+			method="ecommerce_integrations.shopify.connection.store_request_data",
+			message=_("Hit from Shopify"),
+		)
+
 		hmac_header = frappe.get_request_header("X-Shopify-Hmac-Sha256")
 
 		_validate_request(frappe.request, hmac_header)
@@ -224,6 +230,9 @@ def _validate_request(req, hmac_header):
 	# Get the appropriate secret key based on authentication method
 	if settings.authentication_method == "OAuth 2.0 Client Credentials":
 		# For OAuth apps, use client_secret for HMAC validation
+		secret_key = settings.get_password("client_secret")
+	elif settings.authentication_method == "Authorization Code Grant":
+		# For Authorization Code Grant apps, use client_secret for HMAC validation
 		secret_key = settings.get_password("client_secret")
 	else:
 		# For static token apps, use shared_secret
