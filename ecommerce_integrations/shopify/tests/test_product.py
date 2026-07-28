@@ -3,7 +3,7 @@
 
 import frappe
 
-from ecommerce_integrations.shopify.product import ShopifyProduct
+from ecommerce_integrations.shopify.product import ShopifyProduct, _match_sku_and_link_item
 
 from .utils import TestCase
 
@@ -115,6 +115,38 @@ class TestProduct(TestCase):
 				shopify_product, variant_MR, {"option1": "M", "option2": "Red"}
 			),
 			"39845261541529",
+		)
+
+
+	def test_match_sku_and_link_item_variant(self):
+		"""Variants should be linked to an existing ERPNext item when the SKU matches."""
+		template_item = make_item()
+
+		frappe.get_doc(
+			{
+				"doctype": "Item",
+				"item_code": "VAR-SKU-001",
+				"item_name": "VAR-SKU-001",
+				"description": "VAR-SKU-001",
+				"item_group": "Products",
+				"is_stock_item": 1,
+			}
+		).insert()
+
+		linked = _match_sku_and_link_item(
+			item_dict={"sku": "VAR-SKU-001"},
+			product_id="SHOPIFY-PROD",
+			variant_id="SHOPIFY-VAR",
+			variant_of=template_item.item_code,
+			has_variant=0,
+		)
+
+		self.assertTrue(linked)
+		self.assertTrue(
+			frappe.db.exists(
+				"Ecommerce Item",
+				{"sku": "VAR-SKU-001", "erpnext_item_code": "VAR-SKU-001", "variant_of": template_item.item_code},
+			)
 		)
 
 

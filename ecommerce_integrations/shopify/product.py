@@ -292,7 +292,7 @@ def _match_sku_and_link_item(item_dict, product_id, variant_id, variant_of=None,
 	Returns true if matched and linked.
 	"""
 	sku = item_dict["sku"]
-	if not sku or variant_of or has_variant:
+	if not sku or has_variant:
 		return False
 
 	item_name = frappe.db.get_value("Item", {"item_code": sku})
@@ -331,16 +331,26 @@ def create_items_if_not_exist(order):
 def get_item_code(shopify_item):
 	"""Get item code using shopify_item dict.
 
-	Item should contain both product_id and variant_id."""
+	A valid SKU is required; do not fall back to product/variant ID."""
+
+	sku = shopify_item.get("sku")
+	if not sku:
+		frappe.throw(
+			_("Missing SKU for Shopify line item: {0}").format(
+				shopify_item.get("title") or shopify_item.get("product_id")
+			)
+		)
 
 	item = ecommerce_item.get_erpnext_item(
 		integration=MODULE_NAME,
 		integration_item_code=shopify_item.get("product_id"),
 		variant_id=shopify_item.get("variant_id"),
-		sku=shopify_item.get("sku"),
+		sku=sku,
 	)
-	if item:
-		return item.item_code
+	if not item:
+		frappe.throw(_("No ERPNext item found for Shopify SKU {0}").format(sku))
+
+	return item.item_code
 
 
 @temp_shopify_session

@@ -106,7 +106,9 @@ def get_erpnext_item(
 ):
 	"""Get ERPNext item for specified ecommerce_item.
 
-	Note: If variant_id is not specified then item is assumed to be single OR template.
+	When a SKU is supplied it is used as the lookup key; otherwise the
+	integration_item_code (and optional variant_id) is used. This keeps
+	order sync from resolving the wrong item when the SKU is known.
 	"""
 
 	item_code = None
@@ -114,7 +116,7 @@ def get_erpnext_item(
 		item_code = frappe.db.get_value(
 			"Ecommerce Item", {"sku": sku, "integration": integration}, fieldname="erpnext_item_code"
 		)
-	if not item_code:
+	else:
 		item_code = get_erpnext_item_code(
 			integration, integration_item_code, variant_id=variant_id, has_variants=has_variants
 		)

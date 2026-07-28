@@ -59,10 +59,18 @@ class TestEcommerceItem(unittest.TestCase):
 
 	def test_get_erpnext_item_sku(self):
 		self._create_doc_with_sku()
-		a = ecommerce_item.get_erpnext_item("shopify", "T-SHIRT", sku="TEST_ITEM_1")
+		# SKU lookup must win even when the supplied integration_item_code is wrong
+		a = ecommerce_item.get_erpnext_item("shopify", "WRONG-CODE", sku="TEST_ITEM_1")
 		b = frappe.get_doc("Item", "_Test Item")
 		self.assertEqual(a.name, b.name)
 		self.assertEqual(a.item_code, b.item_code)
+
+	def test_get_erpnext_item_sku_no_id_fallback(self):
+		self._create_doc()
+		# When a SKU is supplied but not found, do not fall back to integration_item_code
+		self.assertIsNone(
+			ecommerce_item.get_erpnext_item("shopify", "T-SHIRT", sku="UNKNOWN-SKU")
+		)
 
 	def _create_doc(self):
 		"""basic test for creation of ecommerce item"""
