@@ -292,7 +292,7 @@ def _match_sku_and_link_item(item_dict, product_id, variant_id, variant_of=None,
 	Returns true if matched and linked.
 	"""
 	sku = item_dict["sku"]
-	if not sku or has_variant:
+	if not sku:
 		return False
 
 	item_name = frappe.db.get_value("Item", {"item_code": sku})
@@ -304,7 +304,7 @@ def _match_sku_and_link_item(item_dict, product_id, variant_id, variant_of=None,
 					"integration": MODULE_NAME,
 					"erpnext_item_code": item_name,
 					"integration_item_code": product_id,
-					"has_variants": 0,
+					"has_variants": has_variant,
 					"variant_id": cstr(variant_id),
 					"sku": sku,
 				}
