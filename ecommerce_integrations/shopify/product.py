@@ -181,7 +181,7 @@ class ShopifyProduct:
 				shopify_item_variant = {
 					"id": product_dict.get("id"),
 					"variant_id": variant.get("id"),
-					"item_code": variant.get("id"),
+					"item_code": variant.get("sku") or cstr(variant.get("id")),
 					"title": product_dict.get("title", "").strip() + "-" + variant.get("title"),
 					"product_type": product_dict.get("product_type"),
 					"sku": variant.get("sku"),
@@ -331,7 +331,9 @@ def create_items_if_not_exist(order):
 def get_item_code(shopify_item):
 	"""Get item code using shopify_item dict.
 
-	A valid SKU is required; do not fall back to product/variant ID."""
+	Looks up the SKU in the Item table.
+	If not found, creates Item + Ecommerce Item and sends notification email.
+	If found, checks/creates Ecommerce Item link then returns item_code."""
 
 	sku = shopify_item.get("sku")
 	if not sku:
@@ -341,16 +343,80 @@ def get_item_code(shopify_item):
 			)
 		)
 
-	item = ecommerce_item.get_erpnext_item(
-		integration=MODULE_NAME,
-		integration_item_code=shopify_item.get("product_id"),
-		variant_id=shopify_item.get("variant_id"),
-		sku=sku,
-	)
-	if not item:
-		frappe.throw(_("No ERPNext item found for Shopify SKU {0}").format(sku))
+	# Step 1: Look for SKU in Item table
+	item_code = frappe.db.get_value("Item", {"item_code": sku}, "item_code")
 
-	return item.item_code
+	if not item_code:
+		# Fetch full product from Shopify and create via standard product sync
+		product_id = shopify_item.get("product_id")
+		variant_id = shopify_item.get("variant_id")
+		product = ShopifyProduct(product_id, variant_id=variant_id, sku=sku)
+		product.sync_product()
+
+		# Re-check after sync
+		item_code = frappe.db.get_value("Item", {"item_code": sku}, "item_code")
+		if not item_code:
+			frappe.throw(
+				_("Failed to create ERPNext item for Shopify SKU {0}").format(sku)
+			)
+
+		_notify_new_item_created(shopify_item, sku)
+
+	# Step 2: Check if Ecommerce Item link exists
+	ecommerce_item_exists = frappe.db.exists(
+		"Ecommerce Item",
+		{"sku": sku, "integration": MODULE_NAME},
+	)
+
+	# Step 3: Create Ecommerce Item link if missing
+	if not ecommerce_item_exists:
+		frappe.get_doc({
+			"doctype": "Ecommerce Item",
+			"integration": MODULE_NAME,
+			"erpnext_item_code": item_code,
+			"integration_item_code": cstr(shopify_item.get("product_id")),
+			"variant_id": cstr(shopify_item.get("variant_id") or ""),
+			"sku": sku,
+		}).insert(ignore_permissions=True)
+		frappe.logger().info(
+			f"Created Ecommerce Item link for SKU {sku} -> {item_code}"
+		)
+
+	return item_code
+
+
+
+def _notify_new_item_created(shopify_item, sku):
+	"""Send email notification when a new Item is auto-created from Shopify."""
+	setting = frappe.get_cached_doc(SETTING_DOCTYPE)
+	shop_url = setting.shopify_url or ""
+
+	subject = f"Shopify Sync: New Item {sku} auto-created in ERPNext"
+	message = f"""
+	<h3>New Item Auto-Created from Shopify Order</h3>
+	<p>An item was not found in ERPNext and has been automatically created during order sync.</p>
+	<p><b>Please review and update this item with correct details (item group, warehouse, pricing, barcode, etc.)</b></p>
+	<table border="1" cellpadding="5" cellspacing="0">
+		<tr><td><b>Shop URL</b></td><td>{shop_url}</td></tr>
+		<tr><td><b>SKU / Item Code</b></td><td>{sku}</td></tr>
+		<tr><td><b>Product Title</b></td><td>{shopify_item.get("title") or ""}</td></tr>
+		<tr><td><b>Shopify Product ID</b></td><td>{shopify_item.get("product_id")}</td></tr>
+		<tr><td><b>Shopify Variant ID</b></td><td>{shopify_item.get("variant_id")}</td></tr>
+		<tr><td><b>Quantity</b></td><td>{shopify_item.get("quantity")}</td></tr>
+		<tr><td><b>Price</b></td><td>{shopify_item.get("price")}</td></tr>
+	</table>
+	"""
+
+	frappe.log_error(title=subject, message=message)
+
+	try:
+		frappe.sendmail(
+			recipients=["marketing+webshop@coastmountaincollective.ca"],
+			subject=subject,
+			message=message,
+		)
+	except Exception:
+		frappe.logger().error(f"Failed to send new item notification for {sku}")
 
 
 @temp_shopify_session

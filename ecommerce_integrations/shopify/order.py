@@ -60,11 +60,13 @@ def sync_sales_order(payload, request_id=None):
 			else:
 				customer.update_existing_addresses(shopify_customer)
 
-		create_items_if_not_exist(order)
-
 		setting = frappe.get_doc(SETTING_DOCTYPE)
 		create_order(order, setting)
 	except Exception as e:
+		frappe.log_error(
+			title=f"Shopify order sync failed: {order.get('id')}",
+			message=frappe.get_traceback(),
+		)
 		create_shopify_log(
 			status="Error",
 			method="ecommerce_integrations.shopify.order.sync_sales_order",
