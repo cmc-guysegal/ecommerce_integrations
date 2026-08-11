@@ -119,6 +119,7 @@ class TestProductUpload(TestCase):
 				"weight_uom": "Kg",
 			}
 		)
+		item.flags.from_integration = True
 		item.insert()
 
 		product = MagicMock()
@@ -141,6 +142,7 @@ class TestProductUpload(TestCase):
 				"disabled": 1,
 			}
 		)
+		item.flags.from_integration = True
 		item.insert()
 
 		product = MagicMock()
@@ -165,6 +167,21 @@ class TestVariantUpdate(TestCase):
 
 		product = ShopifyProduct(product_id="6704435495065")
 		product.sync_product()
+
+		# Enable upload settings for the update tests
+		setting = frappe.get_doc(SETTING_DOCTYPE)
+		cls._original_update = setting.update_shopify_item_on_update
+		cls._original_upload = setting.upload_erpnext_items
+		frappe.db.set_value(SETTING_DOCTYPE, SETTING_DOCTYPE, "update_shopify_item_on_update", 1)
+		frappe.db.set_value(SETTING_DOCTYPE, SETTING_DOCTYPE, "upload_erpnext_items", 1)
+		frappe.db.commit()
+
+	@classmethod
+	def tearDownClass(cls):
+		super().tearDownClass()
+		frappe.db.set_value(SETTING_DOCTYPE, SETTING_DOCTYPE, "update_shopify_item_on_update", cls._original_update)
+		frappe.db.set_value(SETTING_DOCTYPE, SETTING_DOCTYPE, "upload_erpnext_items", cls._original_upload)
+		frappe.db.commit()
 
 	def test_variant_update_finds_existing_by_id(self):
 		"""When updating a variant, the code should find the existing Shopify variant

@@ -20,7 +20,7 @@ class TestProduct(TestCase):
 
 		item = product.get_erpnext_item()
 
-		self.assertEqual(frappe.get_last_doc("Item").item_code, item.item_code)
+		self.assertEqual(item.item_code, "6732194021530")
 
 		ecommerce_item_exists = frappe.db.exists("Ecommerce Item", {"erpnext_item_code": item.name})
 		self.assertTrue(bool(ecommerce_item_exists))

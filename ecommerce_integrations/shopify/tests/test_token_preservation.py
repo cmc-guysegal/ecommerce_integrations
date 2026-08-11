@@ -58,10 +58,8 @@ class TestTokenPreservation(TestCase):
 			setting.reload()
 			setting.authentication_method = "Authorization Code Grant"
 			setting.flags.ignore_validate = True
-			setting.save(ignore_permissions=True)
-
-			# Call lifecycle hooks manually since ignore_validate skips them
 			setting.before_save()
+			setting.save(ignore_permissions=True)
 			setting.on_update()
 
 			# Token should still be there
@@ -92,9 +90,8 @@ class TestTokenPreservation(TestCase):
 			setting.enable_shopify = 0
 			setting.authentication_method = "Authorization Code Grant"
 			setting.flags.ignore_validate = True
-			setting.save(ignore_permissions=True)
-
 			setting.before_save()
+			setting.save(ignore_permissions=True)
 			setting.on_update()
 
 			preserved = self._get_current_token()
@@ -145,8 +142,8 @@ class TestTokenPreservation(TestCase):
 				setting.reload()
 				setting.authentication_method = "Authorization Code Grant"
 				setting.flags.ignore_validate = True
-				setting.save(ignore_permissions=True)
 				setting.before_save()
+				setting.save(ignore_permissions=True)
 				setting.on_update()
 
 			preserved = self._get_current_token()
