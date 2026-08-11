@@ -32,7 +32,7 @@ sed -i 's/schedule:/# schedule:/g' Procfile
 sed -i 's/socketio:/# socketio:/g' Procfile
 sed -i 's/redis_socketio:/# redis_socketio:/g' Procfile
 
-bench get-app payments --branch develop
+bench get-app payments --branch version-15
 bench get-app erpnext --branch version-15
 bench get-app ecommerce_integrations "${GITHUB_WORKSPACE}"
 
