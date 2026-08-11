@@ -122,7 +122,7 @@ class TestProduct(TestCase):
 		"""Variants should be linked to an existing ERPNext item when the SKU matches."""
 		template_item = make_item()
 
-		frappe.get_doc(
+		item = frappe.get_doc(
 			{
 				"doctype": "Item",
 				"item_code": "VAR-SKU-001",
@@ -131,7 +131,9 @@ class TestProduct(TestCase):
 				"item_group": "Products",
 				"is_stock_item": 1,
 			}
-		).insert()
+		)
+		item.flags.from_integration = True
+		item.insert()
 
 		linked = _match_sku_and_link_item(
 			item_dict={"sku": "VAR-SKU-001"},

@@ -96,9 +96,9 @@ class TestProductUpload(TestCase):
 				"item_group": "Products",
 			}
 		)
+		item.flags.from_integration = True
 		item.insert()
 
-		item.flags.from_integration = True
 		upload_erpnext_item(item)
 
 		exists = frappe.db.exists(
@@ -168,12 +168,12 @@ class TestVariantUpdate(TestCase):
 		product = ShopifyProduct(product_id="6704435495065")
 		product.sync_product()
 
-		# Enable upload settings for the update tests
+		# Enable only the update setting so upload_erpnext_item uses the update path
 		setting = frappe.get_doc(SETTING_DOCTYPE)
 		cls._original_update = setting.update_shopify_item_on_update
 		cls._original_upload = setting.upload_erpnext_items
 		frappe.db.set_value(SETTING_DOCTYPE, SETTING_DOCTYPE, "update_shopify_item_on_update", 1)
-		frappe.db.set_value(SETTING_DOCTYPE, SETTING_DOCTYPE, "upload_erpnext_items", 1)
+		frappe.db.set_value(SETTING_DOCTYPE, SETTING_DOCTYPE, "upload_erpnext_items", 0)
 		frappe.db.commit()
 
 	@classmethod
