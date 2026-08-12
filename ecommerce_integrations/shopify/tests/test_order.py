@@ -112,6 +112,8 @@ class TestOrderSync(TestCase):
 		order = json.loads(self.load_fixture("order"))
 		order["id"] = 9999900003
 		order["name"] = "#T-003"
+		order["financial_status"] = "pending"
+		order["fulfillments"] = []
 
 		sync_sales_order(order)
 		so = frappe.get_doc("Sales Order", {ORDER_ID_FIELD: str(order["id"])})

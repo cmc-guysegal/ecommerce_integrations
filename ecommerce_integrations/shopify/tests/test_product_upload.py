@@ -58,10 +58,12 @@ class TestProductUpload(TestCase):
 	def test_upload_skipped_when_disabled(self):
 		"""Upload should be skipped if integration is disabled."""
 		setting = frappe.get_doc(SETTING_DOCTYPE)
-		original = setting.upload_erpnext_items
+		original_upload = setting.upload_erpnext_items
+		original_update = setting.update_shopify_item_on_update
 
 		try:
 			setting.upload_erpnext_items = 0
+			setting.update_shopify_item_on_update = 0
 			setting.flags.ignore_validate = True
 			setting.save(ignore_permissions=True)
 
@@ -82,7 +84,8 @@ class TestProductUpload(TestCase):
 			)
 			self.assertFalse(exists)
 		finally:
-			setting.upload_erpnext_items = original
+			setting.upload_erpnext_items = original_upload
+			setting.update_shopify_item_on_update = original_update
 			setting.flags.ignore_validate = True
 			setting.save(ignore_permissions=True)
 

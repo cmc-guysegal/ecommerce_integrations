@@ -295,25 +295,27 @@ def _match_sku_and_link_item(item_dict, product_id, variant_id, variant_of=None,
 	if not sku:
 		return False
 
-	item_name = frappe.db.get_value("Item", {"item_code": sku})
-	if item_name:
-		try:
-			ecommerce_item = frappe.get_doc(
-				{
-					"doctype": "Ecommerce Item",
-					"integration": MODULE_NAME,
-					"erpnext_item_code": item_name,
-					"integration_item_code": product_id,
-					"has_variants": has_variant,
-					"variant_id": cstr(variant_id),
-					"sku": sku,
-				}
-			)
+	if not frappe.db.exists("Item", sku):
+		return False
 
-			ecommerce_item.insert()
-			return True
-		except Exception:
-			return False
+	try:
+		ecommerce_item = frappe.get_doc(
+			{
+				"doctype": "Ecommerce Item",
+				"integration": MODULE_NAME,
+				"erpnext_item_code": sku,
+				"integration_item_code": product_id,
+				"has_variants": has_variant,
+				"variant_id": cstr(variant_id),
+				"sku": sku,
+				"variant_of": variant_of,
+			}
+		)
+
+		ecommerce_item.insert()
+		return True
+	except Exception:
+		return False
 
 
 def create_items_if_not_exist(order):
@@ -432,7 +434,7 @@ def upload_erpnext_item(doc, method=None):
 
 	setting = frappe.get_doc(SETTING_DOCTYPE)
 
-	if not setting.is_enabled() or not setting.upload_erpnext_items:
+	if not setting.is_enabled():
 		return
 
 	if frappe.flags.in_import:
