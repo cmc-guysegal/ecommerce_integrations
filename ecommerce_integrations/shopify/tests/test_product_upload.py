@@ -175,8 +175,10 @@ class TestVariantUpdate(TestCase):
 		setting = frappe.get_doc(SETTING_DOCTYPE)
 		cls._original_update = setting.update_shopify_item_on_update
 		cls._original_upload = setting.upload_erpnext_items
+		cls._original_variant_sync = setting.upload_variants_as_items
 		frappe.db.set_value(SETTING_DOCTYPE, SETTING_DOCTYPE, "update_shopify_item_on_update", 1)
 		frappe.db.set_value(SETTING_DOCTYPE, SETTING_DOCTYPE, "upload_erpnext_items", 0)
+		frappe.db.set_value(SETTING_DOCTYPE, SETTING_DOCTYPE, "upload_variants_as_items", 1)
 		frappe.db.commit()
 
 	@classmethod
@@ -184,6 +186,7 @@ class TestVariantUpdate(TestCase):
 		super().tearDownClass()
 		frappe.db.set_value(SETTING_DOCTYPE, SETTING_DOCTYPE, "update_shopify_item_on_update", cls._original_update)
 		frappe.db.set_value(SETTING_DOCTYPE, SETTING_DOCTYPE, "upload_erpnext_items", cls._original_upload)
+		frappe.db.set_value(SETTING_DOCTYPE, SETTING_DOCTYPE, "upload_variants_as_items", cls._original_variant_sync)
 		frappe.db.commit()
 
 	def test_variant_update_finds_existing_by_id(self):
