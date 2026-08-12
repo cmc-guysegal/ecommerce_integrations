@@ -472,7 +472,7 @@ def upload_erpnext_item(doc, method=None):
 		if is_successful:
 			update_default_variant_properties(
 				product,
-				sku=item.sku or item.item_code,
+				sku=item.get("sku") or item.item_code,
 				price=template_item.get(ITEM_SELLING_RATE_FIELD),
 				is_stock_item=template_item.is_stock_item,
 			)
@@ -481,7 +481,7 @@ def upload_erpnext_item(doc, method=None):
 				product.variants = []
 				variant_attributes = {
 					"title": template_item.item_name,
-					"sku": item.sku or item.item_code,
+					"sku": item.get("sku") or item.item_code,
 					"price": item.get(ITEM_SELLING_RATE_FIELD),
 				}
 				max_index_range = min(3, len(template_item.attributes))
@@ -533,7 +533,15 @@ def upload_erpnext_item(doc, method=None):
 					price=item.get(ITEM_SELLING_RATE_FIELD),
 				)
 			else:
-				variant_attributes = {"sku": item.sku or item.item_code, "price": item.get(ITEM_SELLING_RATE_FIELD)}
+				variant_sku = frappe.db.get_value(
+					"Ecommerce Item",
+					{"erpnext_item_code": item.name, "integration": MODULE_NAME},
+					"sku",
+				)
+				variant_attributes = {
+					"sku": variant_sku or item.get("sku") or item.item_code,
+					"price": item.get(ITEM_SELLING_RATE_FIELD),
+				}
 				max_index_range = min(3, len(template_item.attributes))
 				for i in range(0, max_index_range):
 					try:
