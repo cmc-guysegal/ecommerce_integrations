@@ -362,7 +362,9 @@ def exchange_code_for_token(shopify_url: str, client_id: str, client_secret: str
 		)
 
 
-@frappe.whitelist(allow_guest=True)
+@frappe.whitelist(
+	allow_guest=True
+)  # nosemgrep: OAuth callback must be public; user is not yet authenticated.
 def shopify_oauth_callback():
 	"""
 	Callback endpoint for Shopify OAuth Authorization Code flow.
