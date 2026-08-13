@@ -247,8 +247,8 @@ class TestVariantUpdate(TestCase):
 		mock_variant.id = 99999999999  # Different ID
 		mock_variant.sku = "TSHIRT-002"
 		mock_variant.price = "1000.00"
-		mock_variant.option1 = "S"
-		mock_variant.option2 = "Blue"
+		mock_variant.option1 = item.attributes[0].attribute_value
+		mock_variant.option2 = item.attributes[1].attribute_value
 		mock_variant.option3 = None
 
 		mock_product = MagicMock(spec=Product)
