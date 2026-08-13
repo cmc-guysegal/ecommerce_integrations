@@ -69,9 +69,9 @@ class TestOrderSync(TestCase):
 
 		# Set up tax mapping
 		setting = frappe.get_doc(SETTING_DOCTYPE)
-		setting.default_sales_tax_account = frappe.db.get_value(
-			"Account", {"account_name": "GST", "company": "_Test Company"}, "name"
-		) or ""
+		setting.default_sales_tax_account = (
+			frappe.db.get_value("Account", {"account_name": "GST", "company": "_Test Company"}, "name") or ""
+		)
 		setting.flags.ignore_validate = True
 		setting.save(ignore_permissions=True)
 

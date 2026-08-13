@@ -21,7 +21,9 @@ class TestShopifyImportProducts(TestCase):
 
 	def test_import_all_products(self):
 		required_products = {
-			str(p["id"]): ([str(v["id"]) for v in p.get("variants", [])] if len(p.get("variants", [])) > 1 else [])
+			str(p["id"]): (
+				[str(v["id"]) for v in p.get("variants", [])] if len(p.get("variants", [])) > 1 else []
+			)
 			for p in self._products
 		}
 

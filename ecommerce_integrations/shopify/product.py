@@ -349,9 +349,7 @@ def get_item_code(shopify_item):
 	variant_id = cstr(shopify_item.get("variant_id") or "")
 
 	# Step 1: Look for Ecommerce Item by stable Shopify product/variant ID
-	item_code = ecommerce_item.get_erpnext_item_code(
-		MODULE_NAME, product_id, variant_id=variant_id
-	)
+	item_code = ecommerce_item.get_erpnext_item_code(MODULE_NAME, product_id, variant_id=variant_id)
 
 	# Step 2: Legacy fallback by SKU
 	if not item_code:
@@ -367,9 +365,7 @@ def get_item_code(shopify_item):
 		product.sync_product()
 
 		# Re-check after sync
-		item_code = ecommerce_item.get_erpnext_item_code(
-			MODULE_NAME, product_id, variant_id=variant_id
-		)
+		item_code = ecommerce_item.get_erpnext_item_code(MODULE_NAME, product_id, variant_id=variant_id)
 		if not item_code:
 			item_code = frappe.db.get_value(
 				"Ecommerce Item",
@@ -377,14 +373,11 @@ def get_item_code(shopify_item):
 				"erpnext_item_code",
 			)
 		if not item_code:
-			frappe.throw(
-				_("Failed to create ERPNext item for Shopify SKU {0}").format(sku)
-			)
+			frappe.throw(_("Failed to create ERPNext item for Shopify SKU {0}").format(sku))
 
 		_notify_new_item_created(shopify_item, sku)
 
 	return item_code
-
 
 
 def _notify_new_item_created(shopify_item, sku):

@@ -120,7 +120,9 @@ def register_webhooks(shopify_url: str, password: str) -> list[Webhook]:
 			create_shopify_log(
 				status="Info",
 				method="ecommerce_integrations.shopify.connection.register_webhooks",
-				message=_("Webhook create response: {0}, is_valid: {1}").format(webhook.to_dict(), webhook.is_valid()),
+				message=_("Webhook create response: {0}, is_valid: {1}").format(
+					webhook.to_dict(), webhook.is_valid()
+				),
 			)
 
 			if webhook.is_valid():
@@ -128,7 +130,9 @@ def register_webhooks(shopify_url: str, password: str) -> list[Webhook]:
 				create_shopify_log(
 					status="Success",
 					method="ecommerce_integrations.shopify.connection.register_webhooks",
-					message=_("Webhook registered successfully for topic: {0}, ID: {1}").format(topic, webhook.id),
+					message=_("Webhook registered successfully for topic: {0}, ID: {1}").format(
+						topic, webhook.id
+					),
 				)
 			else:
 				create_shopify_log(

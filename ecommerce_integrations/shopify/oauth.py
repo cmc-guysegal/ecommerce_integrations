@@ -12,8 +12,9 @@ import secrets
 import time
 from datetime import datetime, timedelta
 
-import frappe
 import requests
+
+import frappe
 from frappe import _
 from frappe.utils import get_datetime, get_datetime_str, now_datetime
 from frappe.utils.password import set_encrypted_password
@@ -400,7 +401,9 @@ def shopify_oauth_callback():
 	create_shopify_log(
 		status="Info",
 		method="ecommerce_integrations.shopify.oauth.shopify_oauth_callback",
-		message=_("Token received from Shopify: {0}").format(access_token[:20] + "..." if len(access_token) > 20 else access_token),
+		message=_("Token received from Shopify: {0}").format(
+			access_token[:20] + "..." if len(access_token) > 20 else access_token
+		),
 	)
 
 	create_shopify_log(
@@ -425,7 +428,9 @@ def shopify_oauth_callback():
 		create_shopify_log(
 			status="Info",
 			method="ecommerce_integrations.shopify.oauth.shopify_oauth_callback",
-			message=_("Token saved to database. Verification: {0}").format(saved_token[:20] + "..." if saved_token and len(saved_token) > 20 else saved_token),
+			message=_("Token saved to database. Verification: {0}").format(
+				saved_token[:20] + "..." if saved_token and len(saved_token) > 20 else saved_token
+			),
 		)
 	except Exception as e:
 		create_shopify_log(

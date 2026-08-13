@@ -68,9 +68,7 @@ class TestEcommerceItem(unittest.TestCase):
 	def test_get_erpnext_item_sku_no_id_fallback(self):
 		self._create_doc()
 		# When a SKU is supplied but not found, do not fall back to integration_item_code
-		self.assertIsNone(
-			ecommerce_item.get_erpnext_item("shopify", "T-SHIRT", sku="UNKNOWN-SKU")
-		)
+		self.assertIsNone(ecommerce_item.get_erpnext_item("shopify", "T-SHIRT", sku="UNKNOWN-SKU"))
 
 	def _create_doc(self):
 		"""basic test for creation of ecommerce item"""

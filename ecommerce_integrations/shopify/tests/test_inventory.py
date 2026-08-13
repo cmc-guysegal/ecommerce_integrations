@@ -37,16 +37,7 @@ class TestInventorySync(TestCase):
 
 			# Should return without error
 			update_inventory_on_shopify()
-
-			# No inventory logs should be created
-			logs = frappe.get_all(
-				"Ecommerce Integration Log",
-				filters={"method": "update_inventory_on_shopify"},
-				limit=1,
-				order_by="creation desc",
-			)
-			# Either no logs or no new logs from this run
-			self.assertTrue(True)  # If we got here without error, the guard worked
+			# If we got here without error, the guard worked
 		finally:
 			setting.update_erpnext_stock_levels_to_shopify = original
 			setting.flags.ignore_validate = True
@@ -83,7 +74,9 @@ class TestInventoryLogging(TestCase):
 
 		_log_inventory_update_status(items)
 
-		log = frappe.get_last_doc("Ecommerce Integration Log", filters={"method": "update_inventory_on_shopify"})
+		log = frappe.get_last_doc(
+			"Ecommerce Integration Log", filters={"method": "update_inventory_on_shopify"}
+		)
 		self.assertEqual(log.status, "Success")
 		self.assertIn("100.0%", log.message)
 
@@ -96,20 +89,26 @@ class TestInventoryLogging(TestCase):
 
 		_log_inventory_update_status(items)
 
-		log = frappe.get_last_doc("Ecommerce Integration Log", filters={"method": "update_inventory_on_shopify"})
+		log = frappe.get_last_doc(
+			"Ecommerce Integration Log", filters={"method": "update_inventory_on_shopify"}
+		)
 		self.assertEqual(log.status, "Partial Success")
 		self.assertIn("50.0%", log.message)
 
 	def test_log_all_failed(self):
 		"""All items failing should log as 'Failed'."""
 		items = [
-			MagicMock(variant_id="v1", shopify_location_id="l1", status="Failed", failure_reason="Connection error"),
+			MagicMock(
+				variant_id="v1", shopify_location_id="l1", status="Failed", failure_reason="Connection error"
+			),
 			MagicMock(variant_id="v2", shopify_location_id="l1", status="Failed", failure_reason="Timeout"),
 		]
 
 		_log_inventory_update_status(items)
 
-		log = frappe.get_last_doc("Ecommerce Integration Log", filters={"method": "update_inventory_on_shopify"})
+		log = frappe.get_last_doc(
+			"Ecommerce Integration Log", filters={"method": "update_inventory_on_shopify"}
+		)
 		self.assertEqual(log.status, "Failed")
 		self.assertIn("0.0%", log.message)
 
@@ -121,7 +120,9 @@ class TestInventoryLogging(TestCase):
 
 		_log_inventory_update_status(items)
 
-		log = frappe.get_last_doc("Ecommerce Integration Log", filters={"method": "update_inventory_on_shopify"})
+		log = frappe.get_last_doc(
+			"Ecommerce Integration Log", filters={"method": "update_inventory_on_shopify"}
+		)
 		self.assertIn("variant_id,location_id,status,failure_reason", log.message)
 		self.assertIn("v123", log.message)
 		self.assertIn("loc456", log.message)

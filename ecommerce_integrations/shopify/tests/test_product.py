@@ -117,7 +117,6 @@ class TestProduct(TestCase):
 			"39845261541529",
 		)
 
-
 	def test_match_sku_and_link_item_variant(self):
 		"""Variants should be linked to an existing ERPNext item when the SKU matches."""
 		template_item = make_item()
@@ -147,7 +146,11 @@ class TestProduct(TestCase):
 		self.assertTrue(
 			frappe.db.exists(
 				"Ecommerce Item",
-				{"sku": "VAR-SKU-001", "erpnext_item_code": "VAR-SKU-001", "variant_of": template_item.item_code},
+				{
+					"sku": "VAR-SKU-001",
+					"erpnext_item_code": "VAR-SKU-001",
+					"variant_of": template_item.item_code,
+				},
 			)
 		)
 

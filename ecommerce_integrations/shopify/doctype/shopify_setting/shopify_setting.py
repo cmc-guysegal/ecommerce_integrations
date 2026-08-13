@@ -50,7 +50,9 @@ class ShopifySetting(SettingController):
 				create_shopify_log(
 					status="Info",
 					method="ecommerce_integrations.shopify.doctype.shopify_setting.shopify_setting._get_password_safe",
-					message=_("Document is new or has no name, returning empty for field: {0}").format(fieldname),
+					message=_("Document is new or has no name, returning empty for field: {0}").format(
+						fieldname
+					),
 				)
 				return ""
 
@@ -95,11 +97,14 @@ class ShopifySetting(SettingController):
 
 	def on_update(self):
 		# Re-set authorization_code_token after save (Frappe clears __Auth for Single doctypes)
-		if getattr(self, '_preserved_auth_code_token', None):
+		if getattr(self, "_preserved_auth_code_token", None):
 			from frappe.utils.password import set_encrypted_password
+
 			set_encrypted_password(
-				"Shopify Setting", self.name, self._preserved_auth_code_token,
-				fieldname="authorization_code_token"
+				"Shopify Setting",
+				self.name,
+				self._preserved_auth_code_token,
+				fieldname="authorization_code_token",
 			)
 			frappe.db.commit()
 
@@ -177,6 +182,7 @@ class ShopifySetting(SettingController):
 		# Stash token before save - Frappe clears __Auth for Single doctypes during db_update
 		if self.authentication_method == "Authorization Code Grant":
 			from frappe.utils.password import get_decrypted_password
+
 			self._preserved_auth_code_token = get_decrypted_password(
 				"Shopify Setting", "Shopify Setting", "authorization_code_token", raise_exception=False
 			)
@@ -207,7 +213,9 @@ class ShopifySetting(SettingController):
 		create_shopify_log(
 			status="Info",
 			method="ecommerce_integrations.shopify.doctype.shopify_setting.shopify_setting._handle_webhooks",
-			message=_( "_handle_webhooks called: is_enabled={0}, webhooks_count={1}").format(self.is_enabled(), len(self.webhooks) if self.webhooks else 0),
+			message=_("_handle_webhooks called: is_enabled={0}, webhooks_count={1}").format(
+				self.is_enabled(), len(self.webhooks) if self.webhooks else 0
+			),
 		)
 
 		if self.is_enabled() and not self.webhooks:

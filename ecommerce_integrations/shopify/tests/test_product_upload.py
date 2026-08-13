@@ -164,7 +164,9 @@ class TestVariantUpdate(TestCase):
 		# First sync the variant product to create template + variants in ERPNext
 		cls.fake_instance = cls()
 		cls.fake_instance.setUp()
-		cls.fake_instance.fake("products/6704435495065", body=cls.fake_instance.load_fixture("variant_product"))
+		cls.fake_instance.fake(
+			"products/6704435495065", body=cls.fake_instance.load_fixture("variant_product")
+		)
 
 		from ecommerce_integrations.shopify.product import ShopifyProduct
 
@@ -184,9 +186,13 @@ class TestVariantUpdate(TestCase):
 	@classmethod
 	def tearDownClass(cls):
 		super().tearDownClass()
-		frappe.db.set_value(SETTING_DOCTYPE, SETTING_DOCTYPE, "update_shopify_item_on_update", cls._original_update)
+		frappe.db.set_value(
+			SETTING_DOCTYPE, SETTING_DOCTYPE, "update_shopify_item_on_update", cls._original_update
+		)
 		frappe.db.set_value(SETTING_DOCTYPE, SETTING_DOCTYPE, "upload_erpnext_items", cls._original_upload)
-		frappe.db.set_value(SETTING_DOCTYPE, SETTING_DOCTYPE, "upload_variants_as_items", cls._original_variant_sync)
+		frappe.db.set_value(
+			SETTING_DOCTYPE, SETTING_DOCTYPE, "upload_variants_as_items", cls._original_variant_sync
+		)
 		frappe.db.commit()
 
 	def test_variant_update_finds_existing_by_id(self):
@@ -200,7 +206,6 @@ class TestVariantUpdate(TestCase):
 			{"integration_item_code": "6704435495065", "variant_id": "39845261443225"},
 		)
 		item = frappe.get_doc("Item", ecom_item.erpnext_item_code)
-		template_item = frappe.get_doc("Item", item.variant_of)
 
 		# Create a mock Shopify product with existing variants
 		mock_variant = MagicMock(spec=Variant)
@@ -304,8 +309,9 @@ class TestVariantUpdate(TestCase):
 		frappe.db.set_value("Ecommerce Item", ecom_item.name, "variant_id", "00000000000")
 
 		try:
-			with patch("ecommerce_integrations.shopify.product.Product") as MockProduct, \
-				patch("ecommerce_integrations.shopify.product.Variant") as MockVariantClass:
+			with patch("ecommerce_integrations.shopify.product.Product") as MockProduct, patch(
+				"ecommerce_integrations.shopify.product.Variant"
+			) as MockVariantClass:
 				MockProduct.find.return_value = mock_product
 				MockVariantClass.return_value = MagicMock()
 
