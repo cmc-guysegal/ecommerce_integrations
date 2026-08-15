@@ -73,9 +73,7 @@ class TestHMACValidation(TestCase):
 		"""Valid HMAC signature should not raise."""
 		secret = "supersecret"
 		data = b'{"id": 123}'
-		sig = base64.b64encode(
-			hmac.new(secret.encode("utf8"), data, hashlib.sha256).digest()
-		).decode()
+		sig = base64.b64encode(hmac.new(secret.encode("utf8"), data, hashlib.sha256).digest()).decode()
 
 		req = MagicMock()
 		req.data = data

@@ -58,10 +58,12 @@ class TestProductUpload(TestCase):
 	def test_upload_skipped_when_disabled(self):
 		"""Upload should be skipped if integration is disabled."""
 		setting = frappe.get_doc(SETTING_DOCTYPE)
-		original = setting.upload_erpnext_items
+		original_upload = setting.upload_erpnext_items
+		original_update = setting.update_shopify_item_on_update
 
 		try:
 			setting.upload_erpnext_items = 0
+			setting.update_shopify_item_on_update = 0
 			setting.flags.ignore_validate = True
 			setting.save(ignore_permissions=True)
 
@@ -82,7 +84,8 @@ class TestProductUpload(TestCase):
 			)
 			self.assertFalse(exists)
 		finally:
-			setting.upload_erpnext_items = original
+			setting.upload_erpnext_items = original_upload
+			setting.update_shopify_item_on_update = original_update
 			setting.flags.ignore_validate = True
 			setting.save(ignore_permissions=True)
 
@@ -96,9 +99,9 @@ class TestProductUpload(TestCase):
 				"item_group": "Products",
 			}
 		)
+		item.flags.from_integration = True
 		item.insert()
 
-		item.flags.from_integration = True
 		upload_erpnext_item(item)
 
 		exists = frappe.db.exists(
@@ -119,6 +122,7 @@ class TestProductUpload(TestCase):
 				"weight_uom": "Kg",
 			}
 		)
+		item.flags.from_integration = True
 		item.insert()
 
 		product = MagicMock()
@@ -141,6 +145,7 @@ class TestProductUpload(TestCase):
 				"disabled": 1,
 			}
 		)
+		item.flags.from_integration = True
 		item.insert()
 
 		product = MagicMock()
@@ -159,12 +164,36 @@ class TestVariantUpdate(TestCase):
 		# First sync the variant product to create template + variants in ERPNext
 		cls.fake_instance = cls()
 		cls.fake_instance.setUp()
-		cls.fake_instance.fake("products/6704435495065", body=cls.fake_instance.load_fixture("variant_product"))
+		cls.fake_instance.fake(
+			"products/6704435495065", body=cls.fake_instance.load_fixture("variant_product")
+		)
 
 		from ecommerce_integrations.shopify.product import ShopifyProduct
 
 		product = ShopifyProduct(product_id="6704435495065")
 		product.sync_product()
+
+		# Enable only the update setting so upload_erpnext_item uses the update path
+		setting = frappe.get_doc(SETTING_DOCTYPE)
+		cls._original_update = setting.update_shopify_item_on_update
+		cls._original_upload = setting.upload_erpnext_items
+		cls._original_variant_sync = setting.upload_variants_as_items
+		frappe.db.set_value(SETTING_DOCTYPE, SETTING_DOCTYPE, "update_shopify_item_on_update", 1)
+		frappe.db.set_value(SETTING_DOCTYPE, SETTING_DOCTYPE, "upload_erpnext_items", 0)
+		frappe.db.set_value(SETTING_DOCTYPE, SETTING_DOCTYPE, "upload_variants_as_items", 1)
+		frappe.db.commit()
+
+	@classmethod
+	def tearDownClass(cls):
+		super().tearDownClass()
+		frappe.db.set_value(
+			SETTING_DOCTYPE, SETTING_DOCTYPE, "update_shopify_item_on_update", cls._original_update
+		)
+		frappe.db.set_value(SETTING_DOCTYPE, SETTING_DOCTYPE, "upload_erpnext_items", cls._original_upload)
+		frappe.db.set_value(
+			SETTING_DOCTYPE, SETTING_DOCTYPE, "upload_variants_as_items", cls._original_variant_sync
+		)
+		frappe.db.commit()
 
 	def test_variant_update_finds_existing_by_id(self):
 		"""When updating a variant, the code should find the existing Shopify variant
@@ -177,7 +206,6 @@ class TestVariantUpdate(TestCase):
 			{"integration_item_code": "6704435495065", "variant_id": "39845261443225"},
 		)
 		item = frappe.get_doc("Item", ecom_item.erpnext_item_code)
-		template_item = frappe.get_doc("Item", item.variant_of)
 
 		# Create a mock Shopify product with existing variants
 		mock_variant = MagicMock(spec=Variant)
@@ -224,8 +252,8 @@ class TestVariantUpdate(TestCase):
 		mock_variant.id = 99999999999  # Different ID
 		mock_variant.sku = "TSHIRT-002"
 		mock_variant.price = "1000.00"
-		mock_variant.option1 = "S"
-		mock_variant.option2 = "Blue"
+		mock_variant.option1 = item.attributes[0].attribute_value
+		mock_variant.option2 = item.attributes[1].attribute_value
 		mock_variant.option3 = None
 
 		mock_product = MagicMock(spec=Product)
@@ -281,8 +309,9 @@ class TestVariantUpdate(TestCase):
 		frappe.db.set_value("Ecommerce Item", ecom_item.name, "variant_id", "00000000000")
 
 		try:
-			with patch("ecommerce_integrations.shopify.product.Product") as MockProduct, \
-				patch("ecommerce_integrations.shopify.product.Variant") as MockVariantClass:
+			with patch("ecommerce_integrations.shopify.product.Product") as MockProduct, patch(
+				"ecommerce_integrations.shopify.product.Variant"
+			) as MockVariantClass:
 				MockProduct.find.return_value = mock_product
 				MockVariantClass.return_value = MagicMock()
 

@@ -25,16 +25,14 @@ class TestTokenPreservation(TestCase):
 	def _set_test_token(self, token_value):
 		"""Helper to set a test token directly in __Auth."""
 		set_encrypted_password(
-			"Shopify Setting", "Shopify Setting", token_value,
-			fieldname="authorization_code_token"
+			"Shopify Setting", "Shopify Setting", token_value, fieldname="authorization_code_token"
 		)
 		frappe.db.commit()
 
 	def _get_current_token(self):
 		"""Helper to read the current token from __Auth."""
 		return get_decrypted_password(
-			"Shopify Setting", "Shopify Setting", "authorization_code_token",
-			raise_exception=False
+			"Shopify Setting", "Shopify Setting", "authorization_code_token", raise_exception=False
 		)
 
 	def test_token_preserved_after_save(self):
@@ -58,10 +56,8 @@ class TestTokenPreservation(TestCase):
 			setting.reload()
 			setting.authentication_method = "Authorization Code Grant"
 			setting.flags.ignore_validate = True
-			setting.save(ignore_permissions=True)
-
-			# Call lifecycle hooks manually since ignore_validate skips them
 			setting.before_save()
+			setting.save(ignore_permissions=True)
 			setting.on_update()
 
 			# Token should still be there
@@ -92,9 +88,8 @@ class TestTokenPreservation(TestCase):
 			setting.enable_shopify = 0
 			setting.authentication_method = "Authorization Code Grant"
 			setting.flags.ignore_validate = True
-			setting.save(ignore_permissions=True)
-
 			setting.before_save()
+			setting.save(ignore_permissions=True)
 			setting.on_update()
 
 			preserved = self._get_current_token()
@@ -120,8 +115,8 @@ class TestTokenPreservation(TestCase):
 
 			# Should NOT have stashed token
 			self.assertFalse(
-				getattr(setting, '_preserved_auth_code_token', None),
-				"Token should not be stashed for Static Token auth"
+				getattr(setting, "_preserved_auth_code_token", None),
+				"Token should not be stashed for Static Token auth",
 			)
 		finally:
 			setting.authentication_method = original_method
@@ -141,12 +136,12 @@ class TestTokenPreservation(TestCase):
 		self._set_test_token(test_token)
 
 		try:
-			for i in range(3):
+			for _ in range(3):
 				setting.reload()
 				setting.authentication_method = "Authorization Code Grant"
 				setting.flags.ignore_validate = True
-				setting.save(ignore_permissions=True)
 				setting.before_save()
+				setting.save(ignore_permissions=True)
 				setting.on_update()
 
 			preserved = self._get_current_token()

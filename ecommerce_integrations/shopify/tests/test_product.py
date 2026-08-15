@@ -20,7 +20,7 @@ class TestProduct(TestCase):
 
 		item = product.get_erpnext_item()
 
-		self.assertEqual(frappe.get_last_doc("Item").item_code, item.item_code)
+		self.assertEqual(item.item_code, "6732194021530")
 
 		ecommerce_item_exists = frappe.db.exists("Ecommerce Item", {"erpnext_item_code": item.name})
 		self.assertTrue(bool(ecommerce_item_exists))
@@ -117,12 +117,11 @@ class TestProduct(TestCase):
 			"39845261541529",
 		)
 
-
 	def test_match_sku_and_link_item_variant(self):
 		"""Variants should be linked to an existing ERPNext item when the SKU matches."""
 		template_item = make_item()
 
-		frappe.get_doc(
+		item = frappe.get_doc(
 			{
 				"doctype": "Item",
 				"item_code": "VAR-SKU-001",
@@ -131,7 +130,9 @@ class TestProduct(TestCase):
 				"item_group": "Products",
 				"is_stock_item": 1,
 			}
-		).insert()
+		)
+		item.flags.from_integration = True
+		item.insert()
 
 		linked = _match_sku_and_link_item(
 			item_dict={"sku": "VAR-SKU-001"},
@@ -145,7 +146,11 @@ class TestProduct(TestCase):
 		self.assertTrue(
 			frappe.db.exists(
 				"Ecommerce Item",
-				{"sku": "VAR-SKU-001", "erpnext_item_code": "VAR-SKU-001", "variant_of": template_item.item_code},
+				{
+					"sku": "VAR-SKU-001",
+					"erpnext_item_code": "VAR-SKU-001",
+					"variant_of": template_item.item_code,
+				},
 			)
 		)
 

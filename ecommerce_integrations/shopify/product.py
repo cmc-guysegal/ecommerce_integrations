@@ -181,7 +181,7 @@ class ShopifyProduct:
 				shopify_item_variant = {
 					"id": product_dict.get("id"),
 					"variant_id": variant.get("id"),
-					"item_code": variant.get("sku") or cstr(variant.get("id")),
+					"item_code": cstr(variant.get("id")),
 					"title": product_dict.get("title", "").strip() + "-" + variant.get("title"),
 					"product_type": product_dict.get("product_type"),
 					"sku": variant.get("sku"),
@@ -295,25 +295,27 @@ def _match_sku_and_link_item(item_dict, product_id, variant_id, variant_of=None,
 	if not sku:
 		return False
 
-	item_name = frappe.db.get_value("Item", {"item_code": sku})
-	if item_name:
-		try:
-			ecommerce_item = frappe.get_doc(
-				{
-					"doctype": "Ecommerce Item",
-					"integration": MODULE_NAME,
-					"erpnext_item_code": item_name,
-					"integration_item_code": product_id,
-					"has_variants": has_variant,
-					"variant_id": cstr(variant_id),
-					"sku": sku,
-				}
-			)
+	if not frappe.db.exists("Item", sku):
+		return False
 
-			ecommerce_item.insert()
-			return True
-		except Exception:
-			return False
+	try:
+		ecommerce_item = frappe.get_doc(
+			{
+				"doctype": "Ecommerce Item",
+				"integration": MODULE_NAME,
+				"erpnext_item_code": sku,
+				"integration_item_code": product_id,
+				"has_variants": has_variant,
+				"variant_id": cstr(variant_id),
+				"sku": sku,
+				"variant_of": variant_of,
+			}
+		)
+
+		ecommerce_item.insert()
+		return True
+	except Exception:
+		return False
 
 
 def create_items_if_not_exist(order):
@@ -331,9 +333,9 @@ def create_items_if_not_exist(order):
 def get_item_code(shopify_item):
 	"""Get item code using shopify_item dict.
 
-	Looks up the SKU in the Item table.
-	If not found, creates Item + Ecommerce Item and sends notification email.
-	If found, checks/creates Ecommerce Item link then returns item_code."""
+	Looks up the Ecommerce Item by Shopify product/variant ID (stable).
+	Falls back to SKU for legacy items.
+	If not found, creates Item + Ecommerce Item and sends notification email."""
 
 	sku = shopify_item.get("sku")
 	if not sku:
@@ -343,47 +345,39 @@ def get_item_code(shopify_item):
 			)
 		)
 
-	# Step 1: Look for SKU in Item table
-	item_code = frappe.db.get_value("Item", {"item_code": sku}, "item_code")
+	product_id = cstr(shopify_item.get("product_id"))
+	variant_id = cstr(shopify_item.get("variant_id") or "")
+
+	# Step 1: Look for Ecommerce Item by stable Shopify product/variant ID
+	item_code = ecommerce_item.get_erpnext_item_code(MODULE_NAME, product_id, variant_id=variant_id)
+
+	# Step 2: Legacy fallback by SKU
+	if not item_code:
+		item_code = frappe.db.get_value(
+			"Ecommerce Item",
+			{"integration": MODULE_NAME, "sku": sku},
+			"erpnext_item_code",
+		)
 
 	if not item_code:
 		# Fetch full product from Shopify and create via standard product sync
-		product_id = shopify_item.get("product_id")
-		variant_id = shopify_item.get("variant_id")
 		product = ShopifyProduct(product_id, variant_id=variant_id, sku=sku)
 		product.sync_product()
 
 		# Re-check after sync
-		item_code = frappe.db.get_value("Item", {"item_code": sku}, "item_code")
+		item_code = ecommerce_item.get_erpnext_item_code(MODULE_NAME, product_id, variant_id=variant_id)
 		if not item_code:
-			frappe.throw(
-				_("Failed to create ERPNext item for Shopify SKU {0}").format(sku)
+			item_code = frappe.db.get_value(
+				"Ecommerce Item",
+				{"integration": MODULE_NAME, "sku": sku},
+				"erpnext_item_code",
 			)
+		if not item_code:
+			frappe.throw(_("Failed to create ERPNext item for Shopify SKU {0}").format(sku))
 
 		_notify_new_item_created(shopify_item, sku)
 
-	# Step 2: Check if Ecommerce Item link exists
-	ecommerce_item_exists = frappe.db.exists(
-		"Ecommerce Item",
-		{"sku": sku, "integration": MODULE_NAME},
-	)
-
-	# Step 3: Create Ecommerce Item link if missing
-	if not ecommerce_item_exists:
-		frappe.get_doc({
-			"doctype": "Ecommerce Item",
-			"integration": MODULE_NAME,
-			"erpnext_item_code": item_code,
-			"integration_item_code": cstr(shopify_item.get("product_id")),
-			"variant_id": cstr(shopify_item.get("variant_id") or ""),
-			"sku": sku,
-		}).insert(ignore_permissions=True)
-		frappe.logger().info(
-			f"Created Ecommerce Item link for SKU {sku} -> {item_code}"
-		)
-
 	return item_code
-
 
 
 def _notify_new_item_created(shopify_item, sku):
@@ -433,7 +427,7 @@ def upload_erpnext_item(doc, method=None):
 
 	setting = frappe.get_doc(SETTING_DOCTYPE)
 
-	if not setting.is_enabled() or not setting.upload_erpnext_items:
+	if not setting.is_enabled():
 		return
 
 	if frappe.flags.in_import:
@@ -460,7 +454,7 @@ def upload_erpnext_item(doc, method=None):
 	)
 	is_new_product = not bool(product_id)
 
-	if is_new_product:
+	if setting.upload_erpnext_items and is_new_product:
 		product = Product()
 		product.published = False
 		product.status = "active" if setting.sync_new_item_as_active else "draft"
@@ -471,7 +465,7 @@ def upload_erpnext_item(doc, method=None):
 		if is_successful:
 			update_default_variant_properties(
 				product,
-				sku=template_item.item_code,
+				sku=item.get("sku") or item.item_code,
 				price=template_item.get(ITEM_SELLING_RATE_FIELD),
 				is_stock_item=template_item.is_stock_item,
 			)
@@ -480,7 +474,7 @@ def upload_erpnext_item(doc, method=None):
 				product.variants = []
 				variant_attributes = {
 					"title": template_item.item_name,
-					"sku": item.item_code,
+					"sku": item.get("sku") or item.item_code,
 					"price": item.get(ITEM_SELLING_RATE_FIELD),
 				}
 				max_index_range = min(3, len(template_item.attributes))
@@ -521,7 +515,7 @@ def upload_erpnext_item(doc, method=None):
 				ecom_item.insert()
 
 		write_upload_log(status=is_successful, product=product, item=item)
-	elif setting.update_shopify_item_on_update:
+	elif setting.update_shopify_item_on_update and not is_new_product:
 		product = Product.find(product_id)
 		if product:
 			map_erpnext_item_to_shopify(shopify_product=product, erpnext_item=template_item)
@@ -532,7 +526,15 @@ def upload_erpnext_item(doc, method=None):
 					price=item.get(ITEM_SELLING_RATE_FIELD),
 				)
 			else:
-				variant_attributes = {"sku": item.item_code, "price": item.get(ITEM_SELLING_RATE_FIELD)}
+				variant_sku = frappe.db.get_value(
+					"Ecommerce Item",
+					{"erpnext_item_code": item.name, "integration": MODULE_NAME},
+					"sku",
+				)
+				variant_attributes = {
+					"sku": variant_sku or item.get("sku") or item.item_code,
+					"price": item.get(ITEM_SELLING_RATE_FIELD),
+				}
 				max_index_range = min(3, len(template_item.attributes))
 				for i in range(0, max_index_range):
 					try:

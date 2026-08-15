@@ -69,9 +69,9 @@ class TestOrderSync(TestCase):
 
 		# Set up tax mapping
 		setting = frappe.get_doc(SETTING_DOCTYPE)
-		setting.default_sales_tax_account = frappe.db.get_value(
-			"Account", {"account_name": "GST", "company": "_Test Company"}, "name"
-		) or ""
+		setting.default_sales_tax_account = (
+			frappe.db.get_value("Account", {"account_name": "GST", "company": "_Test Company"}, "name") or ""
+		)
 		setting.flags.ignore_validate = True
 		setting.save(ignore_permissions=True)
 
@@ -112,6 +112,8 @@ class TestOrderSync(TestCase):
 		order = json.loads(self.load_fixture("order"))
 		order["id"] = 9999900003
 		order["name"] = "#T-003"
+		order["financial_status"] = "pending"
+		order["fulfillments"] = []
 
 		sync_sales_order(order)
 		so = frappe.get_doc("Sales Order", {ORDER_ID_FIELD: str(order["id"])})

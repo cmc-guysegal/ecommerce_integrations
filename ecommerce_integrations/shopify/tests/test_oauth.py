@@ -32,8 +32,9 @@ class TestOAuthScopes(unittest.TestCase):
 
 	def test_all_required_scopes_present(self):
 		"""All required scopes for the integration should be present."""
-		from ecommerce_integrations.shopify import oauth
 		import inspect
+
+		from ecommerce_integrations.shopify import oauth
 
 		source_code = inspect.getsource(oauth)
 
@@ -54,9 +55,10 @@ class TestOAuthScopes(unittest.TestCase):
 
 	def test_scope_string_is_comma_separated(self):
 		"""Scopes should be comma-separated without spaces (Shopify format)."""
-		from ecommerce_integrations.shopify import oauth
 		import inspect
 		import re
+
+		from ecommerce_integrations.shopify import oauth
 
 		source_code = inspect.getsource(oauth)
 
